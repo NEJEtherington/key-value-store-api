@@ -1,14 +1,15 @@
 # Key Value Database API
 
-Golang API using the [gin](https://gin-gonic.com/) framework.
+Golang API using the [gin](https://gin-gonic.com/) framework.  This is based on the `net/http` package, which uses an individual goroutine to serves each request.
 
-Creates an empty in memory key-value database, using a Mutex to ensure that only one goroutine can access the database at a time to prevent data races and inconsistencieswhen multiple threads or processes are trying to read or write the same key simultaneously.
+Creates an empty in memory key-value database, using a mutex to ensure that only one goroutine can access the database at a time to prevent data races and inconsistencies when multiple threads or processes are trying to read or write the same key simultaneously.
 
 Explicitly sets the `GOMAXPROCS` environment variable to ensure that the maximum number of threads are available for the parallel execution of requests.  This is for the purpose of clarity as by default `GOMAXPROCS` is equal to the number of CPUs.
 
 ## Running the API
 Start the server with: 
 
+`go get`
 `go run cmd/main.go`
 
 The API runs on port 8080.
@@ -26,11 +27,10 @@ Note that the database is empty and will need to be populated using with a PUT h
 
 ## Testing
 
-Tested using the `testing` package, using `t.Parallel()` to ensure that, where relevant, tests are run in parallel (by default tests run sequentially).  
+Tested using the `testing` package.  
 
 Run the tests with:
 
-`go test ./...`
-
+`go test ./... -v`
 
 

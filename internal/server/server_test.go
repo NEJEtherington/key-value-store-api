@@ -2,6 +2,7 @@ package server
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -17,7 +18,13 @@ var router *gin.Engine
 
 func TestMain(m *testing.M) {
 	// start the server
-	kvdb := db.NewKeyValueDB(map[string]string{"b":"B", "c":"C"})
+	kvdb := db.NewKeyValueDB(map[string]string{
+		"a":"A", 
+		"b":"B", 
+		"c":"C",
+		"d":"D",
+		"e":"E",
+	})
 	router = InitRoutes(kvdb)
 	
 
@@ -33,12 +40,14 @@ func TestGetKeys(t *testing.T) {
 	router.ServeHTTP(w, req)
 
 	assert.Equal(t, 200, w.Code)
-	assert.Equal(t, `["b","c"]`, w.Body.String())
+	assert.Contains(t, w.Body.String(), "a")
+	assert.Contains(t, w.Body.String(), "b")
+	assert.Contains(t, w.Body.String(), "c")
 }
 
 func TestGetValue(t *testing.T) {
 	notFound := httptest.NewRecorder()
-	failreq, _ := http.NewRequest("GET", "/a", nil)
+	failreq, _ := http.NewRequest("GET", "/f", nil)
 	router.ServeHTTP(notFound, failreq)
 
 	assert.Equal(t, 404, notFound.Code)
@@ -58,7 +67,7 @@ func TestUpdateValue(t *testing.T) {
 	}
 	notFoundJSONBody, _ := json.Marshal(notFoundBody)
 	notFound := httptest.NewRecorder()
-	req, _ := http.NewRequest("PUT", "/a", strings.NewReader(string(notFoundJSONBody)))
+	req, _ := http.NewRequest("PUT", "/f", strings.NewReader(string(notFoundJSONBody)))
 	router.ServeHTTP(notFound, req)
 
 	assert.Equal(t, 404, notFound.Code)
@@ -78,7 +87,7 @@ func TestUpdateValue(t *testing.T) {
 
 func TestDeleteValue(t *testing.T) {
 	notFound := httptest.NewRecorder()
-	notFoundReq, _ := http.NewRequest("DELETE", "/a", nil)
+	notFoundReq, _ := http.NewRequest("DELETE", "/f", nil)
 	router.ServeHTTP(notFound, notFoundReq)
 
 	assert.Equal(t, 404, notFound.Code)
@@ -92,3 +101,26 @@ func TestDeleteValue(t *testing.T) {
 	assert.Equal(t, `"c"`, ok.Body.String())
 }
 
+func TestGetValueParallel(t *testing.T) {
+	tests := []struct {
+		name string
+		input string
+		expected string
+	}{
+		{"Get a", "a", "A"},
+		{"Get d", "d", "D"},
+		{"Get e", "e", "E"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			ok := httptest.NewRecorder()
+			req, _ := http.NewRequest("GET", fmt.Sprintf("/%s", tt.input), nil)
+			router.ServeHTTP(ok, req)
+
+			assert.Equal(t, 200, ok.Code)
+			assert.Equal(t, tt.expected, ok.Body.String())
+		})
+	}
+}

@@ -9,7 +9,13 @@ import (
 var kvdb *KeyValueDB
 func TestMain(m *testing.M) {
 	// set up the database
-	kvdb = NewKeyValueDB(map[string]string{"b": "B"})
+	kvdb = NewKeyValueDB(map[string]string{
+		"a":"A", 
+		"b":"B", 
+		"c":"C",
+		"d":"D",
+		"e":"E",
+	})
 
 	// run the tests
 	code := m.Run()
@@ -25,7 +31,7 @@ func TestGetKeys(t *testing.T) {
 }
 
 func TestUpdateValue(t *testing.T) {
-	kv, err := kvdb.UpdateValue("a", "A")
+	kv, err := kvdb.UpdateValue("f", "F")
 	assert.Equal(t, kv, map[string]string{})
 	assert.Equal(t, err, ErrInexistentKey)
 
@@ -35,7 +41,7 @@ func TestUpdateValue(t *testing.T) {
 }
 
 func TestGetValue(t *testing.T) {
-	val, err := kvdb.GetValue("a")
+	val, err := kvdb.GetValue("f")
 	assert.Equal(t, val, "")
 	assert.Equal(t, err, ErrInexistentKey)
 
@@ -45,11 +51,32 @@ func TestGetValue(t *testing.T) {
 }
 
 func TestDeleteValue(t *testing.T) {
-	val, err := kvdb.DeleteValue("a")
+	val, err := kvdb.DeleteValue("f")
 	assert.Equal(t, val, "")
 	assert.Equal(t, err, ErrInexistentKey)
 
-	val, err = kvdb.DeleteValue("b")
-	assert.Equal(t, val, "b")
+	val, err = kvdb.DeleteValue("c")
+	assert.Equal(t, val, "c")
 	assert.Nil(t, err)
+}
+
+func TestGetValueParallel(t *testing.T) {
+	tests := []struct {
+		name string
+		input string
+		expected string
+	}{
+		{"Get a", "a", "A"},
+		{"Get d", "d", "D"},
+		{"Get e", "e", "E"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			val, err := kvdb.GetValue(tt.input)
+			assert.Equal(t, val, tt.expected)
+			assert.Nil(t, err)
+		})
+	}
 }
