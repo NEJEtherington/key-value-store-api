@@ -6,12 +6,14 @@ import (
     "runtime"
     
     "github.com/gin-gonic/gin"
+    "kvp-api/internal/db"
     "kvp-api/internal/server"
 )
 
 func main() {
     ParallelConfig()
-    app := server.InitRoutes()
+    kvdb := db.NewKeyValueDB(make(map[string]string))
+    app := server.InitRoutes(kvdb)
     app.SetTrustedProxies(nil)
     if err := app.Run(":8080"); err != nil {
         log.Panic("Failed to start server", err)

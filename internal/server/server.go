@@ -14,20 +14,21 @@ type PutRequestBody struct {
 
 
 // InitRoutes sets up the router with endpoints and controllers
-func InitRoutes() *gin.Engine {	
-	kvdb := db.NewKeyValueDB(make(map[string]string, 0)) 
+func InitRoutes(kvdb *db.KeyValueDB) *gin.Engine {	
+	// kvdb := db.NewKeyValueDB(make(map[string]string, 0)) 
 
 	router := gin.Default()
-	router.GET("/", getKeys(kvdb))
-	router.GET("/:key", getValue(kvdb))
-	router.PUT("/:key", updateValue(kvdb))
-	router.DELETE("/:key", deleteValue(kvdb))
+	router.GET("/", GetKeys(kvdb))
+	router.GET("/:key", GetValue(kvdb))
+	router.PUT("/:key", UpdateValue(kvdb))
+	router.DELETE("/:key", DeleteValue(kvdb))
 
 	return router
 }
 
-// Get all keys from the database
-func getKeys(kv *db.KeyValueDB) gin.HandlerFunc {
+// GetKeys returns all keys from the database
+// Returns an empty list if the db is empty
+func GetKeys(kv *db.KeyValueDB) gin.HandlerFunc {
 	fn := func(c *gin.Context) {
 		var keys []string
 		keys = kv.GetKeys()
@@ -39,9 +40,9 @@ func getKeys(kv *db.KeyValueDB) gin.HandlerFunc {
 }
 
 
-// Get the value for a key
-// Return a 404 if key does not exist
-func getValue(kv *db.KeyValueDB) gin.HandlerFunc{
+// GetValue returns the value for a key
+// Returns a 404 if key does not exist
+func GetValue(kv *db.KeyValueDB) gin.HandlerFunc{
 	fn := func(c *gin.Context) {
 		key := c.Param("key")
 		var val string
@@ -49,6 +50,8 @@ func getValue(kv *db.KeyValueDB) gin.HandlerFunc{
 
 		if val, err = kv.GetValue(key); err != nil {
 			c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": err.Error()})
+
+			return
 		}
 
 		c.String(http.StatusOK, val)
@@ -57,20 +60,24 @@ func getValue(kv *db.KeyValueDB) gin.HandlerFunc{
 	return gin.HandlerFunc(fn)
 }
 
-// Update the value for a key
-// If the key exists, update the value
-func updateValue(kv *db.KeyValueDB) gin.HandlerFunc {
+// UpdateValue updates the value for a key if it exists 
+// Returns a 404 if the key does not exist
+func UpdateValue(kv *db.KeyValueDB) gin.HandlerFunc {
 	fn := func(c *gin.Context) {
 		key := c.Param("key")
 		var val PutRequestBody		
-		if err := c.BindJSON(&val); err != nil {
-			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		if bindErr := c.BindJSON(&val); bindErr != nil {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": bindErr.Error()})
+			
+			return
 		}
 
 		var updated map[string]string
 		var err error
 		if updated, err = kv.UpdateValue(key, val.NewValue); err != nil {
 			c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": err.Error()})
+
+			return
 		}
 
 		c.JSON(http.StatusOK, updated)
@@ -79,15 +86,17 @@ func updateValue(kv *db.KeyValueDB) gin.HandlerFunc {
 	return gin.HandlerFunc(fn)
 }
 
-// Delete a value for a key
-// Return a 404 if the key doesn't exist
-func deleteValue(kv *db.KeyValueDB) gin.HandlerFunc {
+// DeleteValue deletes a value for a key
+// Returns the key deleted or a 404 if the key doesn't exist
+func DeleteValue(kv *db.KeyValueDB) gin.HandlerFunc {
 	fn := func(c *gin.Context) {
 		key := c.Param("key")
 		var deletedKey string
 		var err error
 		if deletedKey, err = kv.DeleteValue(key); err != nil {
 			c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": err.Error()})
+
+			return
 		}
 
 		c.JSON(http.StatusOK, deletedKey)
